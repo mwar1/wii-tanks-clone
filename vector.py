@@ -24,9 +24,10 @@ def scale(vec, factor):
 	newVec.y *= factor
 	return newVec
 
-def set(vec, x, y):
-	vec.x = x
-	vec.y = y
+def set(newVec):
+	vec = Vector2(0, 0)
+	vec.x = newVec.x
+	vec.y = newVec.y
 	return vec
 
 def dotProduct(vec1, vec2):
