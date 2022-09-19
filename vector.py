@@ -15,8 +15,9 @@ class Vector2:
 		self.y -= vec.y
 
 	def normalise(self):
-		self.x /= self.length
-		self.y /= self.length
+		if self.length > 0:
+			self.x /= self.length
+			self.y /= self.length
 
 def scale(vec, factor):
 	newVec = Vector2(vec.x, vec.y)
