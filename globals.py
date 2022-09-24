@@ -1,9 +1,12 @@
 import pygame
 
-SCREENWIDTH = SCREENHEIGHT = 950
+SCREENWIDTH = 1320
+SCREENHEIGHT = 990
 TANK_SCALE = 6
+BULLET_SCALE = 2
 BOMB_SCALE = 3
 EXPLOSION_SCALE = 2
+BLOCK_SCALE = 3
 
 boundingBoxes = [
                 pygame.rect.Rect(0, 0, SCREENWIDTH, 2),

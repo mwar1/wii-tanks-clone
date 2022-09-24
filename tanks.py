@@ -3,7 +3,9 @@ from math import atan, pi
 pygame.init()
 
 bulletImg = pygame.image.load("res/images/bullet.png")
-bulletImg = pygame.transform.scale(bulletImg, (30, 30))
+bulletImgW = bulletImg.get_width()
+bulletImgH = bulletImg.get_height()
+bulletImg = pygame.transform.scale(bulletImg, (bulletImgW * globals.BULLET_SCALE, bulletImgH * globals.BULLET_SCALE))
 bulletImgW = bulletImg.get_width()
 bulletImgH = bulletImg.get_height()
 
@@ -48,7 +50,7 @@ class Explosion(pygame.sprite.Sprite):
             if dim[1] > self.h:
                 self.h = dim[1]
 
-        ## TODO: Adjust radius properly so appropriate tanks die
+        # TODO: Adjust radius properly so appropriate tanks die
         self.radius = self.w / 2 if self.w > self.h else self.h / 2
         self.radius += 35
         self.centre = vector.Vector2(self.x + self.radius, self.y + self.radius)
@@ -136,10 +138,12 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
         self.owner = owner
 
-        self.bounces = 1
-        self.lastCollision = -1
+        self.bounces = 3
+        self.lastCollision = pygame.time.get_ticks()
+        self.lastBox = -1
 
-        self.image = pygame.Surface([bulletImgW, bulletImgH])
+        self.dim = bulletImgW if bulletImgW > bulletImgH else bulletImgH
+        self.image = pygame.Surface([self.dim, self.dim])
         self.image.set_colorkey((0, 0, 0))
 
         self.image.fill((0, 0, 0))
@@ -150,29 +154,46 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.x = self.x
         self.rect.y = self.y
 
-    def step(self, dt):
+    def step(self, dt, levelBoxes):
+        collision = False
+        currentTime = pygame.time.get_ticks()
+
+        ## Move in the x-direction
         self.x += self.speed * self.direction.x * dt
-        self.y += self.speed * self.direction.y * dt
         self.rect.x = self.x
-        self.rect.y = self.y
-
-        for i in range(0, len(globals.boundingBoxes)):
-            if self.rect.colliderect(globals.boundingBoxes[i]):
-                if self.bounces > 0:
-                    if i != self.lastCollision:
-                        self.direction.x *= -1 if (i % 2 == 1) else 1
-                        self.direction.y *= -1 if (i % 2 == 0) else 1
-                        self.bounces -= 1
-                        self.lastCollision = i
-
+        #print(currentTime, self.lastCollision)
+        for box in levelBoxes:
+            if currentTime - self.lastCollision > 5:
+                if self.rect.colliderect(box.rect) and self.bounces > 0 and self.lastBox != box:
+                    self.direction.x *= -1
+                    self.lastBox = box
                     self.updateImage()
-                else:
-                    return False
-        return True
+                    collision = True
+                    self.lastCollision = currentTime
+
+        ## Move in the y-direction
+        self.y += self.speed * self.direction.y * dt
+        self.rect.y = self.y
+        for box in levelBoxes:
+            if currentTime - self.lastCollision > 5:
+                if self.rect.colliderect(box.rect) and self.bounces > 0 and self.lastBox != box:
+                    self.direction.y *= -1
+                    self.lastBox = box
+                    self.updateImage()
+                    collision = True
+                    self.lastCollision = currentTime
+
+        if collision:
+            self.bounces -= 1
+            self.lastCollision = currentTime
+        return self.bounces > 0
 
     def updateImage(self):
         self.image.fill((0, 0, 0))
-        newImg = pygame.transform.rotate(bulletImg, -1*atan(self.direction.y/self.direction.x) * 180/pi)
+        angle = vector.angle(self.direction, vector.Vector2(1, 0))
+        if self.direction.y > 0:
+            angle *= -1
+        newImg = pygame.transform.rotate(bulletImg, angle * 180/pi)
         self.image.blit(newImg, (0, 0))
 
 class Tank(pygame.sprite.Sprite):
@@ -199,7 +220,7 @@ class Tank(pygame.sprite.Sprite):
         self.image.blit(tankParts[self.tankType*2+1], (3*globals.TANK_SCALE, 1*globals.TANK_SCALE))
 
     def shoot(self, direction, index):
-        return Bullet(self.x, self.y, 75, direction, index)
+        return Bullet(self.x, self.y, 45, direction, index)
 
     def updateVelocity(self, delta):
         self.velocity = vector.set(delta)
@@ -211,11 +232,28 @@ class Tank(pygame.sprite.Sprite):
             self.bodyImg = tankParts[self.tankType*2]
         self.updateImage()
 
-    def step(self, dt):
+    def step(self, dt, obstacles):
+        ## Move in x-direction
         self.x += self.velocity.x * self.speed * dt
-        self.y += self.velocity.y * self.speed * dt
         self.rect.x = self.x
+        for box in obstacles:
+            if self.rect.colliderect(box.rect):
+                if self.rect.x < box.rect.x:
+                    self.rect.right = box.rect.left
+                else:
+                    self.rect.left = box.rect.right
+                self.x = self.rect.x
+
+        ## Move in y-direction
         self.rect.y = self.y
+        self.y += self.velocity.y * self.speed * dt
+        for box in obstacles:
+            if self.rect.colliderect(box.rect):
+                if self.rect.y < box.rect.y:
+                    self.rect.bottom = box.rect.top
+                else:
+                    self.rect.top = box.rect.bottom
+                self.y = self.rect.y
 
     def updateImage(self):
         self.image.fill((0, 0, 0))
@@ -230,9 +268,9 @@ class Tank(pygame.sprite.Sprite):
                 self.alive = False
                 return True
 
-        for expl in explosions:
-            for p in [self.rect.topleft, self.rect.topright, self.rect.bottomleft, self.rect.bottomright]:
-                if (p[0] - expl.centre.x)**2 + (p[1] - expl.centre.y)**2 < expl.radius**2:
+        for e in explosions:
+            for side in [self.rect.topleft, self.rect.topright, self.rect.bottomleft, self.rect.bottomright]:
+                if (side[0] - e.centre.x)**2 + (side[1] - e.centre.y)**2 < e.radius**2:
                     return True
 
         return False
