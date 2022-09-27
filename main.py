@@ -44,7 +44,7 @@ while carryOn:
                 ## Shoot a bullet
                 if currentTime - bulletTimer > 250 and len(bullets.sprites()) < 5:
                     bulletTimer = pygame.time.get_ticks()
-                    mouseToTank = vector.Vector2(mousex - player.x, mousey - player.y)
+                    mouseToTank = vector.Vector2(mousex - (player.x + player.w/2), mousey - (player.y - player.h/2))
                     mouseToTank.normalise()
                     newBullet = player.shoot(mouseToTank, 0)
                     bullets.add(newBullet)
@@ -53,6 +53,12 @@ while carryOn:
                 ## Plant a bomb
                 if currentTime - bombTimer > 400 and len(bombs.sprites()) < 2:
                     bombs.add(tanks.Bomb(player.x, player.y, 5000))
+            elif keysPressed[1]:
+                mouseToTank = vector.Vector2(mousex - player.x, mousey - player.y)
+                mouseToTank.normalise()
+                newBullet = player.shoot(mouseToTank, 0, isFast=True)
+                bullets.add(newBullet)
+                newBullet.updateImage()
 
     if pygame.key.get_pressed()[pygame.K_w]:
         playerMovement.add(vector.Vector2(0, -1))
@@ -75,7 +81,7 @@ while carryOn:
             explosions.remove(expl)
 
     for bomb in bombs:
-        if not bomb.step(dt):
+        if not bomb.step(dt, bullets, explosions):
             bombs.remove(bomb)
             explosions.add(tanks.Explosion(bomb.x, bomb.y, 50))
 
@@ -97,6 +103,10 @@ while carryOn:
     obstacles.draw(screen)
     bullets.draw(screen)
     allTanks.draw(screen)
+    s = pygame.Surface([allTanks.sprites()[0].w, allTanks.sprites()[0].h])
+    s.set_alpha(100)
+    s.fill((0, 255, 0))
+    screen.blit(s, (allTanks.sprites()[0].x, allTanks.sprites()[0].y))
 
     pygame.display.flip()
     clock.tick()

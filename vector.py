@@ -20,6 +20,19 @@ class Vector2:
 			self.y /= self.length
 		self.length = sqrt(self.x*self.x + self.y*self.y)
 
+class Mat2:
+	def __init__(self, p0, p1, p2, p3):
+		self.p0 = p0
+		self.p1 = p1
+		self.p2 = p2
+		self.p3 = p3
+
+def vecMatMult(vec, mat):
+	newVec = Vector2(0, 0)
+	newVec.x = vec.x * mat.p0 + vec.y * mat.p1
+	newVec.y = vec.x * mat.p2 + vec.y * mat.p3
+	return newVec
+
 def scale(vec, factor):
 	newVec = Vector2(vec.x, vec.y)
 	newVec.x *= factor
